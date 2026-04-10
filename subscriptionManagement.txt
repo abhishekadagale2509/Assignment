@@ -1,0 +1,252 @@
+[8:29 pm, 10/4/2026] .: Develop a Subscription Management System in Java to manage user subscriptions for different OTT platforms.
+
+Create a class Subscription with attributes: id (String, must be unique), username (String), monthlyPrice (double), durationMonth (int), platform (Enum: Netflix, Amazon, Hotstar, SonyLiv), startDate (LocalDate), and isActive (boolean).
+
+Operations:
+
+Add a new subscription
+
+Display all subscriptions
+
+Search subscription by username 
+
+Update subscription hotstar to jiocinema 
+
+Delete subscription 
+
+Sort subscriptions by monthly price
+
+Exit
+[8:29 pm, 10/4/2026] .: Validations - 
+1. start date not previous than current date
+2. Monthly price to be greater than 0.. No duplicate username
+3. Enum validation.
+
+
+Platform.java (Enum)
+package cms;
+
+public enum Platform {
+    NETFLIX, AMAZON, HOTSTAR, SONYLIV, JIOCINEMA
+}
+
+
+Subscription.java
+package cms;
+
+import java.time.LocalDate;
+
+public class Subscription implements Comparable<Subscription> {
+
+    private String id;
+    private String username;
+    private double monthlyPrice;
+    private int durationMonth;
+    private Platform platform;
+    private LocalDate startDate;
+    private boolean isActive;
+
+    public Subscription(String id, String username, double monthlyPrice,
+                        int durationMonth, Platform platform,
+                        LocalDate startDate, boolean isActive) {
+
+        this.id = id;
+        this.username = username;
+        this.monthlyPrice = monthlyPrice;
+        this.durationMonth = durationMonth;
+        this.platform = platform;
+        this.startDate = startDate;
+        this.isActive = isActive;
+    }
+
+    public String getUsername() {
+        return username;
+    }
+
+    public double getMonthlyPrice() {
+        return monthlyPrice;
+    }
+
+    public Platform getPlatform() {
+        return platform;
+    }
+
+    public void setPlatform(Platform platform) {
+        this.platform = platform;
+    }
+
+    @Override
+    public int compareTo(Subscription o) {
+        return Double.compare(this.monthlyPrice, o.monthlyPrice);
+    }
+
+    @Override
+    public String toString() {
+        return "Subscription [id=" + id + ", username=" + username +
+                ", monthlyPrice=" + monthlyPrice + ", durationMonth=" + durationMonth +
+                ", platform=" + platform + ", startDate=" + startDate +
+                ", isActive=" + isActive + "]";
+    }
+}
+
+
+
+3. SubscriptionException.java
+package cms;
+
+public class SubscriptionException extends Exception {
+
+    private static final long serialVersionUID = 1L;
+
+    public SubscriptionException(String msg) {
+        super(msg);
+    }
+}
+
+
+
+4. SubscriptionUtils.java
+package cms;
+
+import java.time.LocalDate;
+import java.util.List;
+
+public class SubscriptionUtils {
+
+    // Validate Start Date
+    public static void validateDate(LocalDate date) throws SubscriptionException {
+        if (date.isBefore(LocalDate.now())) {
+            throw new SubscriptionException("Start date cannot be in past");
+        }
+    }
+
+    // Validate Price
+    public static void validatePrice(double price) throws SubscriptionException {
+        if (price <= 0) {
+            throw new SubscriptionException("Price must be greater than 0");
+        }
+    }
+
+    // Check duplicate username
+    public static void checkDuplicate(String username, List<Subscription> list)
+            throws SubscriptionException {
+
+        for (Subscription s : list) {
+            if (s.getUsername().equals(username)) {
+                throw new SubscriptionException("Username already exists");
+            }
+        }
+    }
+
+    // Search
+    public static Subscription search(String username, List<Subscription> list)
+            throws SubscriptionException {
+
+        for (Subscription s : list) {
+            if (s.getUsername().equals(username)) {
+                return s;
+            }
+        }
+        throw new SubscriptionException("User not found");
+    }
+}
+
+
+
+
+SubscriptionMain.java
+
+package cms;
+
+import java.time.LocalDate;
+import java.util.*;
+
+public class SubscriptionMain {
+
+    public static void main(String[] args) {
+
+        try (Scanner sc = new Scanner(System.in)) {
+
+            List<Subscription> list = new ArrayList<>();
+            boolean exit = false;
+
+            while (!exit) {
+
+                System.out.println("1.Add 2.Display 3.Search 4.Update HOTSTAR->JIOCINEMA 5.Delete 6.Sort by Price 0.Exit");
+
+                try {
+                    switch (sc.nextInt()) {
+
+                        case 1: // Add
+                            System.out.println("Enter id username price duration platform startDate isActive");
+
+                            String id = sc.next();
+                            String username = sc.next();
+                            double price = sc.nextDouble();
+                            int duration = sc.nextInt();
+                            Platform platform = Platform.valueOf(sc.next().toUpperCase());
+                            LocalDate date = LocalDate.parse(sc.next());
+                            boolean active = sc.nextBoolean();
+
+                            SubscriptionUtils.validateDate(date);
+                            SubscriptionUtils.validatePrice(price);
+                            SubscriptionUtils.checkDuplicate(username, list);
+
+                            list.add(new Subscription(id, username, price, duration, platform, date, active));
+                            System.out.println("Added Successfully");
+                            break;
+
+                        case 2: // Display
+                            list.forEach(System.out::println);
+                            break;
+
+                        case 3: // Search
+                            System.out.println("Enter username");
+                            System.out.println(SubscriptionUtils.search(sc.next(), list));
+                            break;
+
+                        case 4: // Update HOTSTAR -> JIOCINEMA
+                            for (Subscription s : list) {
+                                if (s.getPlatform() == Platform.HOTSTAR) {
+                                    s.setPlatform(Platform.JIOCINEMA);
+                                }
+                            }
+                            System.out.println("Updated");
+                            break;
+
+                        case 5: // Delete
+                            System.out.println("Enter username");
+                            String uname = sc.next();
+
+                            Iterator<Subscription> itr = list.iterator();
+                            while (itr.hasNext()) {
+                                if (itr.next().getUsername().equals(uname)) {
+                                    itr.remove();
+                                    System.out.println("Deleted");
+                                    break;
+                                }
+                            }
+                            break;
+
+                        case 6: // Sort by price
+                            Collections.sort(list);
+                            list.forEach(System.out::println);
+                            break;
+
+                        case 0:
+                            exit = true;
+                            System.out.println("Exit");
+                            break;
+                    }
+
+                } catch (Exception e) {
+                    System.out.println("Error: " + e.getMessage());
+                    sc.nextLine();
+                }
+            }
+        }
+    }
+}
+
+
+
