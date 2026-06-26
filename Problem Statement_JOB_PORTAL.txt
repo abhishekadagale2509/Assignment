@@ -1,0 +1,643 @@
+Problem Statement
+- Job Portal  (Only for Company & Job)
+
+Design and implement a Job Portal Management Service using Spring Boot, Spring Data JPA, and REST APIs, where companies can post jobs , change the job status etc.
+
+Company (Represents an organization that can post job openings)
+
+Attributes 
+ - id (Long - PK) - auto increment
+ - name (unique)
+ - email (unique)
+ - location
+ - industry (enum - Education , Pharmaceutical , Hospitality , Information Technology (IT)  Banking , Healthcare)
+ - created on :  date
+ 
+Job (Represents a job opening posted by a company)
+Attributes
+-	id (Long, PK)  - auto increment
+-	title 
+-	description
+-	salary
+-	location
+-	jobType (enum FULL_TIME / PART_TIME / CONTRACT)
+-	postedDate
+-        status (enum - AVAILABLE | UNAVAILABLE)
+-	company (Many-to-One)
+
+
+Add sample data for some  companies (directly in DB)
+
+Objectives
+APIs 
+1.  List all companies by specified industry type & location
+
+2.  Post new job opening
+Payload
+ company id , title , description ,salary,location, jobType
+
+3. List all job openings posted by companies , from the specified location
+Input  - location
+
+4. Delete all jobs of the specified job type , of specified company
+ Input - job type , company name
+
+5. Update salaries of the job , posted by a specific company , for specific job title
+Input - company id , job title
+
+6. List all the jobs , from specific industry type & having minimum specified salary.
+Input - industry type , min salary
+
+7. Comany needs to update a job status to unavailable (position filled)
+Input - company name & job title
+
+-	Use MySQL Relational Database to save resource.
+- None of the fields in jobs table are Nullable.
+-	Rest URL should be named as per REST best practices.
+-	Response codes should be as per REST guidelines (201 for resource creation, 404 for not found, 200 for ok...)
+-	Error handling in case of failures. (Optional : Global Exception Handling)
+Note:- You have to test all API's on Postman or Swagger
+
+Job Portal Management Service – Spring Boot + JPA + MySQL
+Project Structure
+job-portal/
+│
+├── controller/
+│   ├── CompanyController.java
+│   └── JobController.java
+│
+├── service/
+│   ├── CompanyService.java
+│   └── JobService.java
+│
+├── repository/
+│   ├── CompanyRepository.java
+│   └── JobRepository.java
+│
+├── entity/
+│   ├── Company.java
+│   ├── Job.java
+│   ├── IndustryType.java
+│   ├── JobType.java
+│   └── JobStatus.java
+│
+├── dto/
+│   ├── JobRequestDto.java
+│   └── SalaryUpdateDto.java
+│
+├── exception/
+│   ├── ResourceNotFoundException.java
+│   └── GlobalExceptionHandler.java
+│
+├── JobPortalApplication.java
+└── application.properties
+1. ENUMS
+IndustryType.java
+package com.example.jobportal.entity;
+
+public enum IndustryType {
+    EDUCATION,
+    PHARMACEUTICAL,
+    HOSPITALITY,
+    INFORMATION_TECHNOLOGY,
+    BANKING,
+    HEALTHCARE
+}
+JobType.java
+package com.example.jobportal.entity;
+
+public enum JobType {
+    FULL_TIME,
+    PART_TIME,
+    CONTRACT
+}
+JobStatus.java
+package com.example.jobportal.entity;
+
+public enum JobStatus {
+    AVAILABLE,
+    UNAVAILABLE
+}
+2. ENTITIES
+Company.java
+package com.example.jobportal.entity;
+
+import jakarta.persistence.*;
+import java.time.LocalDate;
+import java.util.List;
+
+@Entity
+@Table(name = "companies")
+public class Company {
+
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+
+    @Column(unique = true, nullable = false)
+    private String name;
+
+    @Column(unique = true, nullable = false)
+    private String email;
+
+    @Column(nullable = false)
+    private String location;
+
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    private IndustryType industry;
+
+    private LocalDate createdOn;
+
+    @OneToMany(mappedBy = "company", cascade = CascadeType.ALL)
+    private List<Job> jobs;
+
+    @PrePersist
+    public void prePersist() {
+        createdOn = LocalDate.now();
+    }
+
+    // Getters and Setters
+}
+Job.java
+package com.example.jobportal.entity;
+
+import jakarta.persistence.*;
+import java.time.LocalDate;
+
+@Entity
+@Table(name = "jobs")
+public class Job {
+
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+
+    @Column(nullable = false)
+    private String title;
+
+    @Column(nullable = false)
+    private String description;
+
+    @Column(nullable = false)
+    private Double salary;
+
+    @Column(nullable = false)
+    private String location;
+
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    private JobType jobType;
+
+    private LocalDate postedDate;
+
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    private JobStatus status;
+
+    @ManyToOne
+    @JoinColumn(name = "company_id", nullable = false)
+    private Company company;
+
+    @PrePersist
+    public void prePersist() {
+        postedDate = LocalDate.now();
+        status = JobStatus.AVAILABLE;
+    }
+
+    // Getters and Setters
+}
+3. DTOs
+JobRequestDto.java
+package com.example.jobportal.dto;
+
+import com.example.jobportal.entity.JobType;
+
+public class JobRequestDto {
+
+    private Long companyId;
+    private String title;
+    private String description;
+    private Double salary;
+    private String location;
+    private JobType jobType;
+
+    // Getters and Setters
+}
+SalaryUpdateDto.java
+package com.example.jobportal.dto;
+
+public class SalaryUpdateDto {
+
+    private Long companyId;
+    private String jobTitle;
+    private Double salary;
+
+    // Getters and Setters
+}
+4. REPOSITORIES
+CompanyRepository.java
+package com.example.jobportal.repository;
+
+import com.example.jobportal.entity.Company;
+import com.example.jobportal.entity.IndustryType;
+import org.springframework.data.jpa.repository.JpaRepository;
+
+import java.util.List;
+
+public interface CompanyRepository extends JpaRepository<Company, Long> {
+
+    List<Company> findByIndustryAndLocation(IndustryType industry,
+                                            String location);
+
+    Company findByName(String name);
+}
+JobRepository.java
+package com.example.jobportal.repository;
+
+import com.example.jobportal.entity.*;
+import org.springframework.data.jpa.repository.JpaRepository;
+
+import java.util.List;
+
+public interface JobRepository extends JpaRepository<Job, Long> {
+
+    List<Job> findByLocation(String location);
+
+    void deleteByJobTypeAndCompany_Name(JobType jobType,
+                                        String companyName);
+
+    List<Job> findByCompany_IndustryAndSalaryGreaterThanEqual(
+            IndustryType industry,
+            Double salary
+    );
+
+    Job findByCompany_NameAndTitle(String companyName,
+                                   String title);
+
+    Job findByCompany_IdAndTitle(Long companyId,
+                                 String title);
+}
+5. SERVICES
+CompanyService.java
+package com.example.jobportal.service;
+
+import com.example.jobportal.entity.Company;
+import com.example.jobportal.entity.IndustryType;
+import com.example.jobportal.repository.CompanyRepository;
+import org.springframework.stereotype.Service;
+
+import java.util.List;
+
+@Service
+public class CompanyService {
+
+    private final CompanyRepository companyRepository;
+
+    public CompanyService(CompanyRepository companyRepository) {
+        this.companyRepository = companyRepository;
+    }
+
+    public List<Company> getCompanies(IndustryType industry,
+                                      String location) {
+
+        return companyRepository.findByIndustryAndLocation(
+                industry,
+                location
+        );
+    }
+}
+JobService.java
+package com.example.jobportal.service;
+
+import com.example.jobportal.dto.JobRequestDto;
+import com.example.jobportal.dto.SalaryUpdateDto;
+import com.example.jobportal.entity.*;
+import com.example.jobportal.exception.ResourceNotFoundException;
+import com.example.jobportal.repository.CompanyRepository;
+import com.example.jobportal.repository.JobRepository;
+import org.springframework.stereotype.Service;
+
+import java.util.List;
+
+@Service
+public class JobService {
+
+    private final JobRepository jobRepository;
+    private final CompanyRepository companyRepository;
+
+    public JobService(JobRepository jobRepository,
+                      CompanyRepository companyRepository) {
+
+        this.jobRepository = jobRepository;
+        this.companyRepository = companyRepository;
+    }
+
+    // Post Job
+    public Job createJob(JobRequestDto dto) {
+
+        Company company = companyRepository.findById(dto.getCompanyId())
+                .orElseThrow(() ->
+                        new ResourceNotFoundException("Company not found"));
+
+        Job job = new Job();
+
+        job.setTitle(dto.getTitle());
+        job.setDescription(dto.getDescription());
+        job.setSalary(dto.getSalary());
+        job.setLocation(dto.getLocation());
+        job.setJobType(dto.getJobType());
+        job.setCompany(company);
+
+        return jobRepository.save(job);
+    }
+
+    // Get Jobs by Location
+    public List<Job> getJobsByLocation(String location) {
+        return jobRepository.findByLocation(location);
+    }
+
+    // Delete Jobs
+    public void deleteJobs(JobType jobType,
+                           String companyName) {
+
+        jobRepository.deleteByJobTypeAndCompany_Name(
+                jobType,
+                companyName
+        );
+    }
+
+    // Update Salary
+    public Job updateSalary(SalaryUpdateDto dto) {
+
+        Job job = jobRepository.findByCompany_IdAndTitle(
+                dto.getCompanyId(),
+                dto.getJobTitle()
+        );
+
+        if (job == null) {
+            throw new ResourceNotFoundException("Job not found");
+        }
+
+        job.setSalary(dto.getSalary());
+
+        return jobRepository.save(job);
+    }
+
+    // Get jobs by industry & min salary
+    public List<Job> getJobsByIndustryAndSalary(
+            IndustryType industry,
+            Double minSalary) {
+
+        return jobRepository
+                .findByCompany_IndustryAndSalaryGreaterThanEqual(
+                        industry,
+                        minSalary
+                );
+    }
+
+    // Update status
+    public Job updateJobStatus(String companyName,
+                               String title) {
+
+        Job job = jobRepository.findByCompany_NameAndTitle(
+                companyName,
+                title
+        );
+
+        if (job == null) {
+            throw new ResourceNotFoundException("Job not found");
+        }
+
+        job.setStatus(JobStatus.UNAVAILABLE);
+
+        return jobRepository.save(job);
+    }
+}
+6. CONTROLLERS
+CompanyController.java
+package com.example.jobportal.controller;
+
+import com.example.jobportal.entity.Company;
+import com.example.jobportal.entity.IndustryType;
+import com.example.jobportal.service.CompanyService;
+import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
+
+@RestController
+@RequestMapping("/api/companies")
+public class CompanyController {
+
+    private final CompanyService companyService;
+
+    public CompanyController(CompanyService companyService) {
+        this.companyService = companyService;
+    }
+
+    // 1. List companies by industry and location
+    @GetMapping
+    public List<Company> getCompanies(
+            @RequestParam IndustryType industry,
+            @RequestParam String location) {
+
+        return companyService.getCompanies(industry, location);
+    }
+}
+JobController.java
+package com.example.jobportal.controller;
+
+import com.example.jobportal.dto.JobRequestDto;
+import com.example.jobportal.dto.SalaryUpdateDto;
+import com.example.jobportal.entity.*;
+import com.example.jobportal.service.JobService;
+import org.springframework.http.HttpStatus;
+import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
+
+@RestController
+@RequestMapping("/api/jobs")
+public class JobController {
+
+    private final JobService jobService;
+
+    public JobController(JobService jobService) {
+        this.jobService = jobService;
+    }
+
+    // 2. Post New Job
+    @PostMapping
+    @ResponseStatus(HttpStatus.CREATED)
+    public Job createJob(@RequestBody JobRequestDto dto) {
+        return jobService.createJob(dto);
+    }
+
+    // 3. List Jobs by Location
+    @GetMapping("/location/{location}")
+    public List<Job> getJobsByLocation(
+            @PathVariable String location) {
+
+        return jobService.getJobsByLocation(location);
+    }
+
+    // 4. Delete Jobs
+    @DeleteMapping
+    public String deleteJobs(
+            @RequestParam JobType jobType,
+            @RequestParam String companyName) {
+
+        jobService.deleteJobs(jobType, companyName);
+
+        return "Jobs deleted successfully";
+    }
+
+    // 5. Update Salary
+    @PutMapping("/salary")
+    public Job updateSalary(
+            @RequestBody SalaryUpdateDto dto) {
+
+        return jobService.updateSalary(dto);
+    }
+
+    // 6. Jobs by Industry & Salary
+    @GetMapping("/filter")
+    public List<Job> getJobs(
+            @RequestParam IndustryType industry,
+            @RequestParam Double minSalary) {
+
+        return jobService.getJobsByIndustryAndSalary(
+                industry,
+                minSalary
+        );
+    }
+
+    // 7. Update Job Status
+    @PutMapping("/status")
+    public Job updateStatus(
+            @RequestParam String companyName,
+            @RequestParam String jobTitle) {
+
+        return jobService.updateJobStatus(
+                companyName,
+                jobTitle
+        );
+    }
+}
+7. EXCEPTION HANDLING
+ResourceNotFoundException.java
+package com.example.jobportal.exception;
+
+public class ResourceNotFoundException
+        extends RuntimeException {
+
+    public ResourceNotFoundException(String message) {
+        super(message);
+    }
+}
+GlobalExceptionHandler.java
+package com.example.jobportal.exception;
+
+import org.springframework.http.HttpStatus;
+import org.springframework.web.bind.annotation.*;
+
+import java.util.Map;
+
+@RestControllerAdvice
+public class GlobalExceptionHandler {
+
+    @ExceptionHandler(ResourceNotFoundException.class)
+    @ResponseStatus(HttpStatus.NOT_FOUND)
+    public Map<String, String> handleNotFound(
+            ResourceNotFoundException ex) {
+
+        return Map.of("error", ex.getMessage());
+    }
+}
+8. application.properties
+spring.datasource.url=jdbc:mysql://localhost:3306/job_portal
+spring.datasource.username=root
+spring.datasource.password=root
+
+spring.jpa.hibernate.ddl-auto=update
+spring.jpa.show-sql=true
+spring.jpa.properties.hibernate.format_sql=true
+
+server.port=8080
+9. SAMPLE DATA (data.sql)
+INSERT INTO companies(name,email,location,industry,created_on)
+VALUES
+('TCS','tcs@gmail.com','Pune','INFORMATION_TECHNOLOGY','2026-06-26'),
+
+('Infosys','infosys@gmail.com','Mumbai',
+'INFORMATION_TECHNOLOGY','2026-06-26'),
+
+('Apollo','apollo@gmail.com','Delhi',
+'HEALTHCARE','2026-06-26');
+10. API TESTING
+1. Get Companies
+GET /api/companies?industry=INFORMATION_TECHNOLOGY&location=Pune
+2. Post Job
+POST /api/jobs
+JSON
+{
+  "companyId": 1,
+  "title": "Java Developer",
+  "description": "Spring Boot Developer",
+  "salary": 80000,
+  "location": "Pune",
+  "jobType": "FULL_TIME"
+}
+3. Get Jobs by Location
+GET /api/jobs/location/Pune
+4. Delete Jobs
+DELETE /api/jobs?jobType=PART_TIME&companyName=TCS
+5. Update Salary
+PUT /api/jobs/salary
+JSON
+{
+  "companyId": 1,
+  "jobTitle": "Java Developer",
+  "salary": 120000
+}
+6. Jobs by Industry & Salary
+GET /api/jobs/filter?industry=INFORMATION_TECHNOLOGY&minSalary=50000
+7. Update Job Status
+PUT /api/jobs/status?companyName=TCS&jobTitle=Java Developer
+Dependencies Required
+
+Add these dependencies in pom.xml:
+
+<dependencies>
+
+    <dependency>
+        <groupId>org.springframework.boot</groupId>
+        <artifactId>spring-boot-starter-web</artifactId>
+    </dependency>
+
+    <dependency>
+        <groupId>org.springframework.boot</groupId>
+        <artifactId>spring-boot-starter-data-jpa</artifactId>
+    </dependency>
+
+    <dependency>
+        <groupId>com.mysql</groupId>
+        <artifactId>mysql-connector-j</artifactId>
+        <scope>runtime</scope>
+    </dependency>
+
+    <dependency>
+        <groupId>org.projectlombok</groupId>
+        <artifactId>lombok</artifactId>
+        <optional>true</optional>
+    </dependency>
+
+</dependencies>
+REST API Status Codes Used
+Operation	Status Code
+Create Job	201 CREATED
+Fetch Data	200 OK
+Delete	200 OK
+Not Found	404 NOT FOUND
+
+ 
