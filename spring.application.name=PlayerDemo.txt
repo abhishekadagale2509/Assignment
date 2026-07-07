@@ -1,0 +1,264 @@
+package com.example.demo.entity;
+
+import java.time.LocalDate;
+
+import jakarta.persistence.*;
+import jakarta.validation.constraints.*;
+import lombok.AllArgsConstructor;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+
+@Entity
+@Data
+@NoArgsConstructor
+@AllArgsConstructor
+public class Player {
+
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Integer playerId;
+
+    @NotBlank(message = "Player Name cannot be blank")
+    private String playerName;
+
+    @PastOrPresent(message = "Date of Birth cannot be future")
+    private LocalDate dateOfBirth;
+
+    @NotBlank(message = "Team Name cannot be blank")
+    private String teamName;
+
+    @NotBlank(message = "Country cannot be blank")
+    private String country;
+
+    @Positive(message = "Jersey Number must be greater than 0")
+    private Integer jerseyNumber;
+
+    @PositiveOrZero(message = "Matches Played cannot be negative")
+    private Integer matchesPlayed;
+
+    @Enumerated(EnumType.STRING)
+    private PlayerType playerType;
+}
+
+
+
+************************************************
+
+package com.example.demo.entity;
+
+public enum PlayerType {
+
+    BATSMAN,
+    BOWLER,
+    FIELDER,
+    KEEPER
+
+}
+
+
+
+*******************************************
+
+
+package com.example.demo.repository;
+
+import java.time.LocalDate;
+import java.util.List;
+
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.stereotype.Repository;
+
+import com.example.demo.entity.Player;
+import com.example.demo.entity.PlayerType;
+
+@Repository
+public interface PlayerRepository extends JpaRepository<Player, Integer> {
+
+    List<Player> findByPlayerType(PlayerType playerType);
+
+    List<Player> findByDateOfBirth(LocalDate dateOfBirth);
+
+    void deleteByPlayerName(String playerName);
+
+}
+***********************************
+
+package com.example.demo.service;
+
+import java.time.LocalDate;
+import java.util.List;
+
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
+
+import com.example.demo.entity.Player;
+import com.example.demo.entity.PlayerType;
+import com.example.demo.repository.PlayerRepository;
+
+@Service
+public class PlayerService {
+
+    @Autowired
+    private PlayerRepository repository;
+
+    public Player addPlayer(Player player) {
+        return repository.save(player);
+    }
+
+    public Player updatePlayer(Player player) {
+        return repository.save(player);
+    }
+
+    public List<Player> getAllPlayers() {
+        return repository.findAll();
+    }
+
+    public void deletePlayer(String playerName) {
+        repository.deleteByPlayerName(playerName);
+    }
+
+    public List<Player> getByDateOfBirth(LocalDate dob) {
+        return repository.findByDateOfBirth(dob);
+    }
+
+    public List<Player> getByPlayerType(PlayerType type) {
+        return repository.findByPlayerType(type);
+    }
+
+}
+***********************************
+package com.example.demo.controller;
+
+import java.time.LocalDate;
+import java.util.List;
+
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
+import org.springframework.validation.annotation.Validated;
+import org.springframework.web.bind.annotation.*;
+
+import com.example.demo.entity.Player;
+import com.example.demo.entity.PlayerType;
+import com.example.demo.service.PlayerService;
+
+@RestController
+@RequestMapping("/players")
+public class PlayerController {
+
+    @Autowired
+    private PlayerService service;
+
+    @PostMapping
+    @ResponseStatus(HttpStatus.CREATED)
+    public Player addPlayer(@Validated @RequestBody Player player) {
+        return service.addPlayer(player);
+    }
+
+    @PutMapping
+    public Player updatePlayer(@Validated @RequestBody Player player) {
+        return service.updatePlayer(player);
+    }
+
+    @GetMapping
+    public List<Player> getAllPlayers() {
+        return service.getAllPlayers();
+    }
+
+    @DeleteMapping("/{playerName}")
+    public String deletePlayer(@PathVariable String playerName) {
+        service.deletePlayer(playerName);
+        return "Player Deleted Successfully";
+    }
+
+    @GetMapping("/type/{type}")
+    public List<Player> getByType(@PathVariable PlayerType type) {
+        return service.getByPlayerType(type);
+    }
+
+    @GetMapping("/dob/{dob}")
+    public List<Player> getByDOB(@PathVariable LocalDate dob) {
+        return service.getByDateOfBirth(dob);
+    }
+}
+*****************************************
+package com.example.demo.exception;
+
+import org.springframework.http.HttpStatus;
+import org.springframework.web.bind.annotation.*;
+
+@ControllerAdvice
+public class GlobalExceptionHandler {
+
+    @ExceptionHandler(ResourceNotFoundException.class)
+    @ResponseStatus(HttpStatus.NOT_FOUND)
+    public String handleResourceNotFound(ResourceNotFoundException ex) {
+        return ex.getMessage();
+    }
+
+}
+********************************
+package com.example.demo.exception;
+
+public class ResourceNotFoundException extends RuntimeException {
+
+    public ResourceNotFoundException(String message) {
+        super(message);
+    }
+
+}
+
+*************************
+
+http://localhost:8080/players
+
+{
+    "playerName": "MS Dhoni",
+    "dateOfBirth": "1981-07-07",
+    "teamName": "Chennai Super Kings",
+    "country": "India",
+    "jerseyNumber": 7,
+    "matchesPlayed": 350,
+    "playerType": "KEEPER"
+}
+
+
+
+{
+    "playerId": 1,
+    "playerName": "MS Dhoni",
+    "dateOfBirth": "1981-07-07",
+    "teamName": "Chennai Super Kings",
+    "country": "India",
+    "jerseyNumber": 7,
+    "matchesPlayed": 350,
+    "playerType": "KEEPER"
+}
+
+http://localhost:8080/players
+
+http://localhost:8080/players/type/BATSMAN
+
+http://localhost:8080/players/dob/1981-07-07
+
+
+
+update:   http://localhost:8080/players
+{
+    "playerId":1,
+    "playerName":"MS Dhoni",
+    "dateOfBirth":"1981-07-07",
+    "teamName":"CSK",
+    "country":"India",
+    "jerseyNumber":7,
+    "matchesPlayed":360,
+    "playerType":"KEEPER"
+}
+
+
+deleted
+
+http://localhost:8080/players/MS Dhoni
+
+
+
+
