@@ -1,3 +1,4 @@
+>>>>
 [8:29 pm, 10/4/2026] .: Develop a Subscription Management System in Java to manage user subscriptions for different OTT platforms.
 
 Create a class Subscription with attributes: id (String, must be unique), username (String), monthlyPrice (double), durationMonth (int), platform (Enum: Netflix, Amazon, Hotstar, SonyLiv), startDate (LocalDate), and isActive (boolean).
